@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AMG RFP Manager — Apex Management Group</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 /* ===== RESET ===== */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -304,53 +304,30 @@ input.err,textarea.err,select.err{border-color:var(--red)}
 ===================================================== */
 const APP_KEY = 'amg_rfp_v2';
 const CTR_KEY = 'amg_ctrs_v2';
-
-/* =====================================================
-   SUPABASE CONFIG  —  fill in your project values
-===================================================== */
+/* ===== SUPABASE ===== */
 const SUPABASE_URL = 'https://ndwogjzxisanjxhjvwgr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kd29nanp4aXNhbmp4aGp2d2dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2MTY0MTcsImV4cCI6MjA5MjE5MjQxN30.M0LhgpeIuVXareTnmIwhtWMOVasxMEWSRZ7hpB0IT8o';
-const sb = (SUPABASE_URL.startsWith('http'))
-  ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-  : null;  // stays null until credentials are filled in
-
+const sb = SUPABASE_URL.startsWith('http') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 async function sbLoad() {
   if (!sb) return;
   try {
-    const [{ data: projRows }, { data: ctrRows }] = await Promise.all([
-      sb.from('projects').select('id, data'),
-      sb.from('contractors').select('id, data'),
-    ]);
-    if (projRows) {
-      S.projects = projRows.map(r => r.data);
-      localStorage.setItem(APP_KEY, JSON.stringify({projects: S.projects}));
-    }
-    if (ctrRows && ctrRows.length > 0) {
-      S.contractors = ctrRows.map(r => r.data);
-      localStorage.setItem(CTR_KEY, JSON.stringify(S.contractors));
-    }
+    const [{data:pr},{data:cr}] = await Promise.all([sb.from('projects').select('id,data'),sb.from('contractors').select('id,data')]);
+    if (pr) { S.projects=pr.map(r=>r.data); localStorage.setItem(APP_KEY,JSON.stringify({projects:S.projects})); }
+    if (cr&&cr.length>0) { S.contractors=cr.map(r=>r.data); localStorage.setItem(CTR_KEY,JSON.stringify(S.contractors)); }
     render();
-  } catch(e) { console.warn('Supabase load error:', e); }
+  } catch(e) { console.warn('sbLoad error:',e); }
 }
-
 async function sbSaveProject(p) {
   if (!sb) return;
-  try {
-    await sb.from('projects').upsert({ id: p.id, data: p, updated_at: new Date().toISOString() });
-  } catch(e) { console.warn('Supabase save error:', e); }
+  try { await sb.from('projects').upsert({id:p.id,data:p,updated_at:new Date().toISOString()}); } catch(e) { console.warn('sbSave error:',e); }
 }
-
 async function sbDeleteProject(id) {
   if (!sb) return;
-  try { await sb.from('projects').delete().eq('id', id); } catch(e) { console.warn('Supabase delete error:', e); }
+  try { await sb.from('projects').delete().eq('id',id); } catch(e) {}
 }
-
 async function sbSaveContractors() {
   if (!sb) return;
-  try {
-    const rows = S.contractors.map(c => ({ id: c.id, data: c }));
-    await sb.from('contractors').upsert(rows);
-  } catch(e) { console.warn('Supabase contractors save error:', e); }
+  try { await sb.from('contractors').upsert(S.contractors.map(c=>({id:c.id,data:c}))); } catch(e) { console.warn('sbCtrs error:',e); }
 }
 const API_KEY_STORE = 'amg_grok_key';
 const MONDAY_KEY_STORE = 'amg_monday_key';
@@ -417,11 +394,7 @@ function proj(id) { return S.projects.find(p => p.id === (id || S.currentId)); }
 
 function upProj(updates) {
   const i = S.projects.findIndex(p => p.id === S.currentId);
-  if (i >= 0) {
-    S.projects[i] = {...S.projects[i], ...updates, updatedAt: now()};
-    saveData();
-    sbSaveProject(S.projects[i]); // background sync to Supabase
-  }
+  if (i >= 0) { S.projects[i] = {...S.projects[i], ...updates, updatedAt: now()}; saveData(); sbSaveProject(S.projects[i]); }
 }
 
 function now() { return new Date().toISOString(); }
@@ -557,123 +530,44 @@ function renderDashboard() {
   const total = S.projects.length;
   const sentCount = S.projects.filter(p=>p.status==='Sent'||p.status==='Bids Collected'||p.status==='Complete').length;
   const doneCount = S.projects.filter(p=>p.status==='Complete').length;
-
-  // Kanban columns — active steps only (no Complete column)
   const COLS = [
-    {step:1, label:'Project Setup',   icon:'🏢', bg:'#1E3A5F'},
-    {step:2, label:'Scope of Work',   icon:'📝', bg:'#1E3A5F'},
-    {step:3, label:'Contractors',     icon:'👷', bg:'#1E3A5F'},
-    {step:4, label:'RFP Preview',     icon:'👁',  bg:'#1E4080'},
-    {step:5, label:'Send RFP',        icon:'📤', bg:'#1D4ED8'},
-    {step:6, label:'Bid Collection',  icon:'💰', bg:'#B45309'},
-    {step:7, label:'Bid Export',      icon:'📊', bg:'#4338CA'},
+    {step:1, label:'Project Setup',  icon:'🏢', bg:'#1E3A5F'},
+    {step:2, label:'Scope of Work',  icon:'📝', bg:'#1E3A5F'},
+    {step:3, label:'Contractors',    icon:'👷', bg:'#1E3A5F'},
+    {step:4, label:'RFP Preview',    icon:'👁',  bg:'#1E4080'},
+    {step:5, label:'Send RFP',       icon:'📤', bg:'#1D4ED8'},
+    {step:6, label:'Bid Collection', icon:'💰', bg:'#B45309'},
+    {step:7, label:'Bid Export',     icon:'📊', bg:'#4338CA'},
   ];
-
-  // Group active (non-archived) projects by step; separate out completed
   const grouped = {};
   COLS.forEach(col => { grouped[col.step] = []; });
   const completed = [];
   const archived = S.projects.filter(p => p.archived);
   S.projects.filter(p => !p.archived).forEach(p => {
-    if (p.status === 'Complete') {
-      completed.push(p);
-    } else {
-      const s = Math.max(1, Math.min(7, p.step || 1));
-      grouped[s].push(p);
-    }
+    if (p.status === 'Complete') { completed.push(p); }
+    else { grouped[Math.max(1,Math.min(7,p.step||1))].push(p); }
   });
-
   function kCard(p) {
     const upd = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
-    return `<div class="k-card" data-action="open-proj" data-id="${p.id}">
-      <div class="k-card-name">${esc(p.projectName||'Untitled Project')}</div>
-      <div class="k-card-assoc">${esc(p.associationName||'—')}</div>
-      <div class="k-card-foot">
-        <span class="k-card-date">Updated ${upd}</span>
-        <button class="k-card-del" data-action="delete-proj" data-id="${p.id}" title="Delete">🗑</button>
-      </div>
-    </div>`;
+    return `<div class="k-card" data-action="open-proj" data-id="${p.id}"><div class="k-card-name">${esc(p.projectName||'Untitled Project')}</div><div class="k-card-assoc">${esc(p.associationName||'—')}</div><div class="k-card-foot"><span class="k-card-date">Updated ${upd}</span><button class="k-card-del" data-action="delete-proj" data-id="${p.id}" title="Delete">🗑</button></div></div>`;
   }
-
   function doneRow(p) {
     const upd = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
-    return '<div class="proj-card" data-action="open-proj" data-id="' + p.id + '">' +
-      '<div class="proj-icon" style="background:#D1FAE5;font-size:18px">✅</div>' +
-      '<div class="proj-body">' +
-        '<div class="proj-name">' + esc(p.projectName||'Untitled Project') + '</div>' +
-        '<div class="proj-meta">' + esc(p.associationName||'—') + ' · Updated ' + upd + '</div>' +
-      '</div>' +
-      '<div class="proj-acts">' +
-        '<button class="btn btn-outline btn-sm" data-action="open-proj" data-id="' + p.id + '">Open</button>' +
-        '<button class="btn btn-ghost btn-sm" data-action="archive-proj" data-id="' + p.id + '" title="Archive project" style="color:var(--g500)">📦 Archive</button>' +
-      '</div>' +
-    '</div>';
+    return '<div class="proj-card" data-action="open-proj" data-id="'+p.id+'">'+'<div class="proj-icon" style="background:#D1FAE5;font-size:18px">✅</div>'+'<div class="proj-body"><div class="proj-name">'+esc(p.projectName||'Untitled Project')+'</div><div class="proj-meta">'+esc(p.associationName||'—')+' · Updated '+upd+'</div></div>'+'<div class="proj-acts"><button class="btn btn-outline btn-sm" data-action="open-proj" data-id="'+p.id+'">Open</button><button class="btn btn-ghost btn-sm" data-action="archive-proj" data-id="'+p.id+'" style="color:var(--g500)">📦 Archive</button></div></div>';
   }
-
   function archivedRow(p) {
     const upd = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
-    return '<div class="proj-card" style="opacity:.65" data-action="open-proj" data-id="' + p.id + '">' +
-      '<div class="proj-icon" style="background:var(--g100);font-size:18px">📦</div>' +
-      '<div class="proj-body">' +
-        '<div class="proj-name">' + esc(p.projectName||'Untitled Project') + '</div>' +
-        '<div class="proj-meta">' + esc(p.associationName||'—') + ' · Updated ' + upd + '</div>' +
-      '</div>' +
-      '<div class="proj-acts">' +
-        '<button class="btn btn-ghost btn-sm" data-action="unarchive-proj" data-id="' + p.id + '" title="Restore">↩ Restore</button>' +
-        '<button class="btn btn-ghost btn-sm" data-action="delete-proj" data-id="' + p.id + '" title="Permanently delete">🗑</button>' +
-      '</div>' +
-    '</div>';
+    return '<div class="proj-card" style="opacity:.65" data-action="open-proj" data-id="'+p.id+'">'+'<div class="proj-icon" style="background:var(--g100);font-size:18px">📦</div>'+'<div class="proj-body"><div class="proj-name">'+esc(p.projectName||'Untitled Project')+'</div><div class="proj-meta">'+esc(p.associationName||'—')+' · Updated '+upd+'</div></div>'+'<div class="proj-acts"><button class="btn btn-ghost btn-sm" data-action="unarchive-proj" data-id="'+p.id+'">↩ Restore</button><button class="btn btn-ghost btn-sm" data-action="delete-proj" data-id="'+p.id+'">🗑</button></div></div>';
   }
-
-  const activeCount = S.projects.length - completed.length;
-  const boardHtml = activeCount === 0 && completed.length === 0
+  const boardHtml = (S.projects.length === 0)
     ? `<div class="empty-state"><div class="empty-ico">📋</div><div class="empty-h">No RFP Projects Yet</div><p>Create your first RFP project to get started.</p></div>`
-    : '<div class="kanban-wrap"><div class="kanban-board">' +
-        COLS.map(col => {
-          const items = grouped[col.step] || [];
-          return '<div class="kanban-col">' +
-            '<div class="kanban-hd" style="background:' + col.bg + '">' +
-              '<span>' + col.icon + ' ' + col.label + '</span>' +
-              '<span class="k-count">' + items.length + '</span>' +
-            '</div>' +
-            '<div class="kanban-body">' +
-              (items.length
-                ? items.map(p => kCard(p)).join('')
-                : '<div class="k-empty">No projects</div>') +
-            '</div>' +
-          '</div>';
-        }).join('') +
-      '</div></div>';
-
-  const completedHtml = completed.length === 0 ? '' :
-    '<div class="section-sep" style="margin-top:28px;margin-bottom:12px">✅ Completed (' + completed.length + ')</div>' +
-    '<div class="proj-grid">' + completed.map(doneRow).join('') + '</div>';
-
-  const archivedHtml = archived.length === 0 ? '' :
-    '<details style="margin-top:24px"><summary style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--g400);cursor:pointer;user-select:none">📦 Archived (' + archived.length + ')</summary>' +
-    '<div class="proj-grid" style="margin-top:10px">' + archived.map(archivedRow).join('') + '</div>' +
-    '</details>';
-
+    : '<div class="kanban-wrap"><div class="kanban-board">'+COLS.map(col=>{const items=grouped[col.step]||[];return '<div class="kanban-col"><div class="kanban-hd" style="background:'+col.bg+'"><span>'+col.icon+' '+col.label+'</span><span class="k-count">'+items.length+'</span></div><div class="kanban-body">'+(items.length?items.map(p=>kCard(p)).join(''):'<div class="k-empty">No projects</div>')+'</div></div>';}).join('')+'</div></div>';
+  const completedHtml = completed.length===0?'':'<div class="section-sep" style="margin-top:28px;margin-bottom:12px">✅ Completed ('+completed.length+')</div><div class="proj-grid">'+completed.map(doneRow).join('')+'</div>';
+  const archivedHtml = archived.length===0?'':'<details style="margin-top:24px"><summary style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--g400);cursor:pointer;user-select:none">📦 Archived ('+archived.length+')</summary><div class="proj-grid" style="margin-top:10px">'+archived.map(archivedRow).join('')+'</div></details>';
   return `
-    <div class="dash-top">
-      <div>
-        <div class="dash-hd">RFP Projects</div>
-        <div class="text-muted">Manage your association bid projects</div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-ghost btn-sm" data-action="export-data" title="Export all RFP data as JSON backup">⬇ Export Archive</button>
-        <button class="btn btn-ghost btn-sm" data-action="import-data" title="Import RFP data from backup">⬆ Import</button>
-        <button class="btn btn-blue btn-lg" data-action="new-proj">+ New RFP Project</button>
-      </div>
-    </div>
-    ${total > 0 ? `<div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
-      <div class="stat-chip">📋 <strong>${total}</strong> Total RFPs</div>
-      <div class="stat-chip">📤 <strong>${sentCount}</strong> Sent</div>
-      <div class="stat-chip">✅ <strong>${doneCount}</strong> Complete</div>
-    </div>` : ''}
-    ${boardHtml}
-    ${completedHtml}
-    ${archivedHtml}
+    <div class="dash-top"><div><div class="dash-hd">RFP Projects</div><div class="text-muted">Manage your association bid projects</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn btn-ghost btn-sm" data-action="export-data">⬇ Export Archive</button><button class="btn btn-ghost btn-sm" data-action="import-data">⬆ Import</button><button class="btn btn-blue btn-lg" data-action="new-proj">+ New RFP Project</button></div></div>
+    ${total > 0 ? `<div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap"><div class="stat-chip">📋 <strong>${total}</strong> Total RFPs</div><div class="stat-chip">📤 <strong>${sentCount}</strong> Sent</div><div class="stat-chip">✅ <strong>${doneCount}</strong> Complete</div></div>` : ''}
+    ${boardHtml}${completedHtml}${archivedHtml}
     <input type="file" id="import-file-input" accept=".json" style="display:none">
   `;
 }
@@ -2218,8 +2112,7 @@ function showDeleteConfirm(id) {
 }
 window.confirmDelete = function(id) {
   S.projects = S.projects.filter(p=>p.id!==id);
-  saveData();
-  sbDeleteProject(id); // background delete from Supabase
+  saveData(); sbDeleteProject(id);
   document.getElementById('modal-ov').classList.add('hidden');
   toast('Project deleted');
   render();
@@ -2259,8 +2152,8 @@ document.addEventListener('click', function(e) {
     case 'new-proj': newProj(); break;
     case 'open-proj': if(id) openProj(id); break;
     case 'delete-proj': if(id) showDeleteConfirm(id); break;
-    case 'archive-proj': if(id) { const ap=S.projects.find(p=>p.id===id); if(ap){ap.archived=true; saveData(); sbSaveProject(ap); render(); toast('Project archived','succ');} } break;
-    case 'unarchive-proj': if(id) { const up=S.projects.find(p=>p.id===id); if(up){delete up.archived; saveData(); sbSaveProject(up); render(); toast('Project restored');} } break;
+    case 'archive-proj': if(id){const ap=S.projects.find(p=>p.id===id);if(ap){ap.archived=true;saveData();sbSaveProject(ap);render();toast('Project archived','succ');}} break;
+    case 'unarchive-proj': if(id){const up=S.projects.find(p=>p.id===id);if(up){delete up.archived;saveData();sbSaveProject(up);render();toast('Project restored');}} break;
     case 'dashboard': collectStep(S.step); showDashboard(); break;
     case 'next': nextStep(); break;
     case 'prev': prevStep(); break;
@@ -2442,20 +2335,19 @@ function handleImportFile(e) {
     try {
       const data = JSON.parse(ev.target.result);
       if (!data.projects) throw new Error('Invalid backup file — no projects found');
+      const importCount = data.projects.length;
       const existingIds = new Set(S.projects.map(p=>p.id));
       let added = 0, skipped = 0;
-      const newProjects = [];
       data.projects.forEach(p => {
         if (existingIds.has(p.id)) { skipped++; }
-        else { S.projects.push(p); newProjects.push(p); added++; }
+        else { S.projects.push(p); added++; }
       });
       if (data.contractors) {
         const existingCtrs = new Set(S.contractors.map(c=>c.id));
         data.contractors.forEach(c => { if (!existingCtrs.has(c.id)) S.contractors.push(c); });
-        saveData(); sbSaveContractors();
+        saveData();
       }
       saveData();
-      newProjects.forEach(p => sbSaveProject(p)); // push each imported project to Supabase
       toast(`Imported ${added} project(s)${skipped>0?' ('+skipped+' skipped — already exist)':''}`, 'succ');
       render();
     } catch(err) {
@@ -2469,9 +2361,9 @@ function handleImportFile(e) {
 /* =====================================================
    INIT
 ===================================================== */
-loadData();   // instant load from localStorage cache
+loadData();
 render();
-sbLoad();     // then refresh from Supabase in background
+sbLoad();
 document.addEventListener('change', e => {
   if (e.target.id === 'import-file-input') handleImportFile(e);
 });
