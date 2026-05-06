@@ -10,36 +10,36 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px}
-body{font-family:'DM Sans',-apple-system,sans-serif;background:#0D1117;color:#E6EDF3;min-height:100vh;line-height:1.5}
+body{font-family:'DM Sans',-apple-system,sans-serif;background:#F6F8FA;color:#1A2535;min-height:100vh;line-height:1.5}
 input,textarea,select,button{font-family:inherit;font-size:inherit}
 a{color:inherit;text-decoration:none}
 
 :root{
-  --bg:#0D1117;--bg2:#161B22;--bg3:#21262D;--bg4:#2D333B;
-  --border:#30363D;--border2:#444C56;
-  --text:#E6EDF3;--text2:#8B949E;--text3:#6E7681;
-  --blue:#2F81F7;--blue-d:#1F6FEB;--blue-lt:rgba(47,129,247,.12);--blue-bd:rgba(47,129,247,.3);
-  --green:#3FB950;--green-lt:rgba(63,185,80,.12);--green-bd:rgba(63,185,80,.3);
-  --amber:#D29922;--amber-lt:rgba(210,153,34,.12);
-  --red:#F85149;--red-lt:rgba(248,81,73,.12);
-  --purple:#A371F7;--purple-lt:rgba(163,113,247,.12);
+  --bg:#F6F8FA;--bg2:#FFFFFF;--bg3:#F1F5F9;--bg4:#E2E8F0;
+  --border:#D0D7DE;--border2:#B0B8C4;
+  --text:#1A2535;--text2:#57606A;--text3:#8C949E;
+  --blue:#2F81F7;--blue-d:#1F6FEB;--blue-lt:rgba(47,129,247,.08);--blue-bd:rgba(47,129,247,.25);
+  --green:#1A7F37;--green-lt:rgba(26,127,55,.08);--green-bd:rgba(26,127,55,.25);
+  --amber:#9A6700;--amber-lt:rgba(154,103,0,.08);
+  --red:#CF222E;--red-lt:rgba(207,34,46,.08);
+  --purple:#8250DF;--purple-lt:rgba(130,80,223,.08);
   --r:8px;--rlg:12px;
 }
 
 /* SCROLLBAR */
 ::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:var(--bg2)}
-::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+::-webkit-scrollbar-track{background:var(--bg3)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
 /* HEADER */
-.app-hdr{background:var(--bg2);height:60px;display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:200;border-bottom:1px solid var(--border);gap:16px}
+.app-hdr{background:#FFFFFF;height:60px;display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:200;border-bottom:1px solid var(--border);gap:16px}
 .hdr-logo{display:flex;align-items:center;gap:10px;flex:1}
 .logo-mark{background:var(--blue);color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:5px;letter-spacing:.8px;text-transform:uppercase;font-family:'DM Mono',monospace}
 .logo-name{color:var(--text);font-size:14px;font-weight:600}
 .logo-sub{color:var(--text3);font-size:11px;font-family:'DM Mono',monospace}
 .hdr-right{display:flex;align-items:center;gap:8px}
 .hdr-badge{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text2);font-family:'DM Mono',monospace}
-.monday-dot{width:7px;height:7px;background:var(--green);border-radius:50%;display:inline-block;margin-right:5px;box-shadow:0 0 6px var(--green)}
+.monday-dot{width:7px;height:7px;background:var(--green);border-radius:50%;display:inline-block;margin-right:5px;box-shadow:0 0 6px rgba(26,127,55,.4)}
 
 /* MAIN */
 #app-main{max-width:900px;margin:0 auto;padding:28px 16px 80px}
@@ -59,12 +59,12 @@ label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase
 label .req{color:var(--red);margin-left:2px}
 input[type=text],input[type=email],input[type=date],input[type=number],input[type=tel],select,textarea{
   border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;font-size:13px;
-  color:var(--text);background:var(--bg3);outline:none;transition:border-color .15s,box-shadow .15s;width:100%
+  color:var(--text);background:#FFFFFF;outline:none;transition:border-color .15s,box-shadow .15s;width:100%
 }
 input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt)}
 input::placeholder,textarea::placeholder{color:var(--text3)}
 textarea{resize:vertical;min-height:110px;line-height:1.6}
-select option{background:var(--bg3)}
+select option{background:#FFFFFF;color:var(--text)}
 .fhint{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
 
 /* BUTTONS */
@@ -119,8 +119,8 @@ select option{background:var(--bg3)}
 .kanban-col{width:200px;flex-shrink:0}
 .kanban-hd{padding:8px 10px;border-radius:6px 6px 0 0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;display:flex;align-items:center;justify-content:space-between}
 .kanban-hd .k-count{font-size:10px;background:rgba(255,255,255,.15);min-width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:'DM Mono',monospace}
-.kanban-body{display:flex;flex-direction:column;gap:6px;min-height:80px;background:var(--bg3);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;padding:7px}
-.k-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:9px 11px;cursor:pointer;transition:all .15s}
+.kanban-body{display:flex;flex-direction:column;gap:6px;min-height:80px;background:#F6F8FA;border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;padding:7px}
+.k-card{background:#FFFFFF;border:1px solid var(--border);border-radius:6px;padding:9px 11px;cursor:pointer;transition:all .15s}
 .k-card:hover{border-color:var(--border2);background:var(--bg3)}
 .k-card-name{font-size:12px;font-weight:600;color:var(--text);line-height:1.35;margin-bottom:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .k-card-assoc{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;font-family:'DM Mono',monospace}
@@ -168,11 +168,11 @@ select option{background:var(--bg3)}
 .bid-tbl tr:hover td{background:var(--bg3)}
 .bid-tbl tr.low-bid td{background:var(--green-lt)!important}
 .bid-tbl tr.low-bid td:first-child{border-left:2px solid var(--green)}
-.bid-in{width:100%;border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:12px;background:var(--bg3);color:var(--text);min-width:90px;font-family:'DM Mono',monospace}
+.bid-in{width:100%;border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:12px;background:#FFFFFF;color:var(--text);min-width:90px;font-family:'DM Mono',monospace}
 .bid-in:focus{outline:none;border-color:var(--blue)}
 
 /* RFP PREVIEW */
-.rfp-prev{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rlg);padding:40px;font-size:13px;line-height:1.7}
+.rfp-prev{background:#FFFFFF;border:1px solid var(--border);border-radius:var(--rlg);padding:40px;font-size:13px;line-height:1.7}
 .rfp-prev h1{font-size:18px;font-weight:700;color:var(--text);text-align:center;margin-bottom:2px}
 .rfp-prev .rfp-sub{text-align:center;color:var(--text2);font-size:12px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace}
 .rfp-prev h2{font-size:11px;font-weight:700;color:var(--text2);margin:16px 0 8px;text-transform:uppercase;letter-spacing:.7px;font-family:'DM Mono',monospace}
@@ -191,13 +191,13 @@ select option{background:var(--bg3)}
 /* MODAL */
 .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
 .modal-ov.hidden{display:none}
-.modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rlg);padding:24px;max-width:520px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.5)}
+.modal-box{background:#FFFFFF;border:1px solid var(--border);border-radius:var(--rlg);padding:24px;max-width:520px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.15)}
 .modal-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:14px}
 .modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
 
 /* TOAST */
 #toast-ct{position:fixed;bottom:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:6px;pointer-events:none}
-.toast{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:var(--r);font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px;pointer-events:all;animation:tsi .2s ease;min-width:200px;max-width:300px}
+.toast{background:#1A2535;border:1px solid var(--border);color:#FFFFFF;padding:10px 14px;border-radius:var(--r);font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.15);display:flex;align-items:center;gap:8px;pointer-events:all;animation:tsi .2s ease;min-width:200px;max-width:300px}
 .toast.succ{background:var(--green-lt);border-color:var(--green-bd);color:var(--green)}
 .toast.err{background:var(--red-lt);border-color:rgba(248,81,73,.3);color:var(--red)}
 .toast.warn{background:var(--amber-lt);border-color:rgba(210,153,34,.3);color:var(--amber)}
@@ -233,7 +233,7 @@ select option{background:var(--bg3)}
 
 /* PROJ CARDS */
 .proj-grid{display:flex;flex-direction:column;gap:8px}
-.proj-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rlg);padding:16px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s}
+.proj-card{background:#FFFFFF;border:1px solid var(--border);border-radius:var(--rlg);padding:16px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s}
 .proj-card:hover{border-color:var(--border2);background:var(--bg3)}
 .proj-icon{width:40px;height:40px;border-radius:var(--r);background:var(--blue-lt);border:1px solid var(--blue-bd);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .proj-body{flex:1;min-width:0}
@@ -297,6 +297,7 @@ select option{background:var(--bg3)}
 // ============================================================
 const MONDAY_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjI1MDQzODc1OSwiYWFpIjoxMSwidWlkIjozNjQwODY5NywiaWFkIjoiMjAyMy0wNC0xMlQyMDo0MDoxMy4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MTQwODk4NTIsInJnbiI6InVzZTEifQ.EThtjo3v0f-CEZM6H-6IxahoA8BhCL97-Ulte5ZBeM8';
 const ANTHROPIC_KEY_PLACEHOLDER = 'YOUR_ANTHROPIC_API_KEY'; // Set via Settings
+const ANTHROPIC_PROXY = 'https://amg-anthropic-proxy.nick-4f8.workers.dev';
 const CONTRACTOR_BOARD_ID = '5061249432';
 const RFP_BOARD_ID = '18411957386';
 
@@ -533,14 +534,11 @@ Timeline: ${projectData.timeline || 'To be determined'}
 
 Generate 8-12 detailed scope items.`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch(ANTHROPIC_PROXY, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      apiKey: key,
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }]
@@ -574,14 +572,11 @@ ${bidSummary}
 Write a formal 3-paragraph memo: 1) Project background, 2) Bid analysis and comparison, 3) Recommendation with justification.
 Keep it professional and board-ready.`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch(ANTHROPIC_PROXY, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      apiKey: key,
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
       messages: [{ role: 'user', content: prompt }]
