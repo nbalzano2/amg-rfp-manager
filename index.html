@@ -1,42 +1,1432 @@
-export default {
-  async fetch(request) {
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    };
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMG RFP Manager v2 — Apex Management Group</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{font-family:'DM Sans',-apple-system,sans-serif;background:#F6F8FA;color:#1A2535;min-height:100vh;line-height:1.5}
+input,textarea,select,button{font-family:inherit;font-size:inherit}
+a{color:inherit;text-decoration:none}
 
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
-    }
+:root{
+  --bg:#F6F8FA;--bg2:#FFFFFF;--bg3:#F1F5F9;--bg4:#E2E8F0;
+  --border:#D0D7DE;--border2:#B0B8C4;
+  --text:#1A2535;--text2:#57606A;--text3:#8C949E;
+  --blue:#2F81F7;--blue-d:#1F6FEB;--blue-lt:rgba(47,129,247,.08);--blue-bd:rgba(47,129,247,.25);
+  --green:#1A7F37;--green-lt:rgba(26,127,55,.08);--green-bd:rgba(26,127,55,.25);
+  --amber:#9A6700;--amber-lt:rgba(154,103,0,.08);
+  --red:#CF222E;--red-lt:rgba(207,34,46,.08);
+  --purple:#8250DF;--purple-lt:rgba(130,80,223,.08);
+  --r:8px;--rlg:12px;
+}
 
-    const url = new URL(request.url);
-    const body = await request.json();
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg3)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
-    // Route Monday.com requests
-    if (url.pathname === '/monday') {
-      const res = await fetch('https://api.monday.com/v2', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': body.token,
-          'API-Version': '2024-01'
-        },
-        body: JSON.stringify({ query: body.query, variables: body.variables })
-      });
-      const data = await res.json();
-      return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+/* HEADER */
+.app-hdr{background:#FFFFFF;height:60px;display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:200;border-bottom:1px solid var(--border);gap:16px}
+.hdr-logo{display:flex;align-items:center;gap:10px;flex:1}
+.logo-mark{background:var(--blue);color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:5px;letter-spacing:.8px;text-transform:uppercase;font-family:'DM Mono',monospace}
+.logo-name{color:var(--text);font-size:14px;font-weight:600}
+.logo-sub{color:var(--text3);font-size:11px;font-family:'DM Mono',monospace}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.hdr-badge{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text2);font-family:'DM Mono',monospace}
+.monday-dot{width:7px;height:7px;background:var(--green);border-radius:50%;display:inline-block;margin-right:5px;box-shadow:0 0 6px rgba(26,127,55,.4)}
 
-    // Route xAI/Grok requests (default)
-    const apiKey = body.apiKey;
-    delete body.apiKey;
-    const res = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
+/* MAIN */
+#app-main{max-width:900px;margin:0 auto;padding:28px 16px 80px}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rlg);padding:24px;margin-bottom:16px}
+.card-hd{font-size:14px;font-weight:600;color:var(--text);margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.card-ico{width:26px;height:26px;background:var(--blue-lt);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;border:1px solid var(--blue-bd)}
+
+/* FORMS */
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.sp2{grid-column:span 2}
+.sp3{grid-column:span 3}
+label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+label .req{color:var(--red);margin-left:2px}
+input[type=text],input[type=email],input[type=date],input[type=number],input[type=tel],select,textarea{
+  border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;font-size:13px;
+  color:var(--text);background:#FFFFFF;outline:none;transition:border-color .15s,box-shadow .15s;width:100%
+}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt)}
+input::placeholder,textarea::placeholder{color:var(--text3)}
+textarea{resize:vertical;min-height:110px;line-height:1.6}
+select option{background:#FFFFFF;color:var(--text)}
+.fhint{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;border-radius:var(--r);border:1px solid transparent;cursor:pointer;transition:all .15s;white-space:nowrap;line-height:1}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue-d)}
+.btn-primary:hover:not(:disabled){background:var(--blue-d);box-shadow:0 0 12px var(--blue-lt)}
+.btn-ghost{background:transparent;color:var(--text2);border-color:var(--border)}
+.btn-ghost:hover:not(:disabled){background:var(--bg3);color:var(--text);border-color:var(--border2)}
+.btn-danger{background:var(--red-lt);color:var(--red);border-color:rgba(248,81,73,.3)}
+.btn-danger:hover:not(:disabled){background:var(--red);color:#fff}
+.btn-success{background:var(--green-lt);color:var(--green);border-color:var(--green-bd)}
+.btn-success:hover:not(:disabled){background:var(--green);color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-lg{padding:10px 22px;font-size:14px}
+
+/* STEPPER */
+.stepper{display:flex;align-items:flex-start;margin-bottom:24px;overflow-x:auto;padding-bottom:4px;gap:0}
+.s-item{display:flex;align-items:flex-start;flex-shrink:0}
+.s-inner{display:flex;flex-direction:column;align-items:center}
+.s-bub{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:1.5px solid var(--border2);background:var(--bg3);color:var(--text3);transition:all .2s;flex-shrink:0;font-family:'DM Mono',monospace}
+.s-bub.active{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 0 12px var(--blue-lt)}
+.s-bub.done{background:var(--green-lt);border-color:var(--green-bd);color:var(--green)}
+.s-lbl{font-size:10px;font-weight:600;color:var(--text3);text-align:center;margin-top:4px;white-space:nowrap;max-width:72px;text-transform:uppercase;letter-spacing:.4px}
+.s-lbl.active{color:var(--blue)}
+.s-lbl.done{color:var(--green)}
+.s-conn{height:1.5px;width:36px;background:var(--border);flex-shrink:0;margin-top:13px;transition:background .2s}
+.s-conn.done{background:var(--green-bd)}
+
+/* STEP NAV */
+.step-nav{display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)}
+.snl{display:flex;gap:8px}
+.snr{display:flex;gap:8px}
+
+/* STEP HEADER */
+.step-hd{margin-bottom:20px}
+.step-title{font-size:18px;font-weight:700;color:var(--text)}
+.step-sub{font-size:13px;color:var(--text2);margin-top:3px}
+.step-num{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+
+/* DASHBOARD */
+.dash-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;gap:16px;flex-wrap:wrap}
+.dash-hd{font-size:20px;font-weight:700;color:var(--text)}
+.dash-sub{font-size:13px;color:var(--text2);margin-top:2px}
+.dash-stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat-pill{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace}
+.stat-pill strong{color:var(--text);font-size:14px}
+
+/* KANBAN */
+.kanban-wrap{overflow-x:auto;padding-bottom:16px;margin:0 -4px}
+.kanban-board{display:flex;gap:10px;padding:0 4px 4px;align-items:flex-start;min-width:max-content}
+.kanban-col{width:200px;flex-shrink:0}
+.kanban-hd{padding:8px 10px;border-radius:6px 6px 0 0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;display:flex;align-items:center;justify-content:space-between}
+.kanban-hd .k-count{font-size:10px;background:rgba(255,255,255,.15);min-width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:'DM Mono',monospace}
+.kanban-body{display:flex;flex-direction:column;gap:6px;min-height:80px;background:#F6F8FA;border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;padding:7px}
+.k-card{background:#FFFFFF;border:1px solid var(--border);border-radius:6px;padding:9px 11px;cursor:pointer;transition:all .15s}
+.k-card:hover{border-color:var(--border2);background:var(--bg3)}
+.k-card-name{font-size:12px;font-weight:600;color:var(--text);line-height:1.35;margin-bottom:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.k-card-assoc{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;font-family:'DM Mono',monospace}
+.k-card-foot{display:flex;align-items:center;justify-content:space-between}
+.k-card-date{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
+.k-card-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;line-height:1;padding:2px;border-radius:3px;opacity:0;transition:opacity .1s}
+.k-card:hover .k-card-del{opacity:1}
+.k-card-del:hover{color:var(--red)}
+.k-empty{text-align:center;padding:16px 6px;color:var(--text3);font-size:10px;line-height:1.5;font-family:'DM Mono',monospace}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap;font-family:'DM Mono',monospace}
+.bd-draft{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.bd-sent{background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-bd)}
+.bd-bids{background:var(--amber-lt);color:var(--amber);border:1px solid rgba(210,153,34,.3)}
+.bd-awarded{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd)}
+.bd-review{background:var(--purple-lt);color:var(--purple);border:1px solid rgba(163,113,247,.3)}
+
+/* CONTRACTOR LIST */
+.ctr-list{display:flex;flex-direction:column;gap:6px}
+.ctr-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:all .15s}
+.ctr-item:hover{border-color:var(--border2)}
+.ctr-item.selected{background:var(--blue-lt);border-color:var(--blue-bd)}
+.ctr-chk{width:16px;height:16px;cursor:pointer;accent-color:var(--blue);flex-shrink:0}
+.ctr-info{flex:1;min-width:0}
+.ctr-name{font-size:13px;font-weight:600;color:var(--text)}
+.ctr-meta{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.ctr-trade{font-size:10px;font-weight:600;background:var(--bg4);color:var(--text2);padding:2px 7px;border-radius:99px;white-space:nowrap;flex-shrink:0;font-family:'DM Mono',monospace;border:1px solid var(--border)}
+.pref-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.pref-preferred .pref-dot{background:var(--green);box-shadow:0 0 5px var(--green)}
+.pref-unsure .pref-dot{background:var(--amber)}
+.pref-trouble .pref-dot{background:var(--red)}
+.ctr-search-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.ctr-search-bar input{flex:1;min-width:160px}
+.ctr-search-bar select{min-width:160px}
+
+/* BID TABLE */
+.bid-wrap{overflow-x:auto}
+.bid-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:700px}
+.bid-tbl th{background:var(--bg4);color:var(--text2);font-size:10px;font-weight:700;padding:8px 10px;text-align:left;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px;font-family:'DM Mono',monospace}
+.bid-tbl th:first-child{border-radius:6px 0 0 0}
+.bid-tbl th:last-child{border-radius:0 6px 0 0}
+.bid-tbl td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.bid-tbl tr:last-child td{border-bottom:none}
+.bid-tbl tr:hover td{background:var(--bg3)}
+.bid-tbl tr.low-bid td{background:var(--green-lt)!important}
+.bid-tbl tr.low-bid td:first-child{border-left:2px solid var(--green)}
+.bid-in{width:100%;border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:12px;background:#FFFFFF;color:var(--text);min-width:90px;font-family:'DM Mono',monospace}
+.bid-in:focus{outline:none;border-color:var(--blue)}
+
+/* RFP PREVIEW */
+.rfp-prev{background:#FFFFFF;border:1px solid var(--border);border-radius:var(--rlg);padding:40px;font-size:13px;line-height:1.7}
+.rfp-prev h1{font-size:18px;font-weight:700;color:var(--text);text-align:center;margin-bottom:2px}
+.rfp-prev .rfp-sub{text-align:center;color:var(--text2);font-size:12px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace}
+.rfp-prev h2{font-size:11px;font-weight:700;color:var(--text2);margin:16px 0 8px;text-transform:uppercase;letter-spacing:.7px;font-family:'DM Mono',monospace}
+.rfp-prev .meta-row{display:flex;padding:5px 0;font-size:12px;border-bottom:1px solid var(--border)}
+.rfp-prev .meta-lbl{font-weight:600;color:var(--text2);width:160px;flex-shrink:0;font-family:'DM Mono',monospace;font-size:11px}
+.rfp-prev .meta-val{color:var(--text)}
+.rfp-prev .scope-block{background:var(--bg3);border-left:2px solid var(--blue);padding:12px 16px;border-radius:0 var(--r) var(--r) 0;white-space:pre-wrap;font-size:12px;color:var(--text2);font-family:'DM Mono',monospace;line-height:1.7}
+
+/* INFO BOXES */
+.info-box{background:var(--blue-lt);border:1px solid var(--blue-bd);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--blue);display:flex;gap:8px;margin-bottom:14px;align-items:flex-start}
+.warn-box{background:var(--amber-lt);border:1px solid rgba(210,153,34,.3);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--amber);display:flex;gap:8px;margin-bottom:14px}
+.success-box{background:var(--green-lt);border:1px solid var(--green-bd);border-radius:var(--r);padding:14px 16px;margin-bottom:14px}
+.success-box .sb-lbl{font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;font-family:'DM Mono',monospace}
+.success-box .sb-val{font-size:16px;font-weight:700;color:var(--green)}
+
+/* MODAL */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal-ov.hidden{display:none}
+.modal-box{background:#FFFFFF;border:1px solid var(--border);border-radius:var(--rlg);padding:24px;max-width:520px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.15)}
+.modal-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:14px}
+.modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+
+/* TOAST */
+#toast-ct{position:fixed;bottom:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:#1A2535;border:1px solid var(--border);color:#FFFFFF;padding:10px 14px;border-radius:var(--r);font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.15);display:flex;align-items:center;gap:8px;pointer-events:all;animation:tsi .2s ease;min-width:200px;max-width:300px}
+.toast.succ{background:var(--green-lt);border-color:var(--green-bd);color:var(--green)}
+.toast.err{background:var(--red-lt);border-color:rgba(248,81,73,.3);color:var(--red)}
+.toast.warn{background:var(--amber-lt);border-color:rgba(210,153,34,.3);color:var(--amber)}
+@keyframes tsi{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* EMAIL */
+.email-prev{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px;font-size:12px;white-space:pre-wrap;line-height:1.7;color:var(--text2);max-height:260px;overflow-y:auto;font-family:'DM Mono',monospace}
+
+/* MISC */
+.divider{height:1px;background:var(--border);margin:18px 0}
+.text-muted{color:var(--text2);font-size:12px}
+.sel-count{background:var(--blue);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;font-family:'DM Mono',monospace}
+.lo-card{flex:1;min-width:160px;background:var(--green-lt);border:1px solid var(--green-bd);border-radius:var(--r);padding:12px 16px}
+.lo-lbl{font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;font-family:'DM Mono',monospace}
+.lo-val{font-size:15px;font-weight:700;color:var(--green);margin-top:2px;font-family:'DM Mono',monospace}
+.lo-sub{font-size:11px;color:var(--green);margin-top:1px;font-family:'DM Mono',monospace}
+.bid-lo-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.section-sep{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin:18px 0 10px;font-family:'DM Mono',monospace}
+
+/* LOADING */
+.loader{display:flex;align-items:center;gap:10px;color:var(--text2);font-size:13px;padding:20px 0}
+.loader-dots{display:flex;gap:4px}
+.loader-dots span{width:6px;height:6px;background:var(--blue);border-radius:50%;animation:ldot .8s infinite}
+.loader-dots span:nth-child(2){animation-delay:.15s}
+.loader-dots span:nth-child(3){animation-delay:.3s}
+@keyframes ldot{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+
+/* MONDAY SYNC INDICATOR */
+.monday-sync{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.monday-sync.syncing{color:var(--blue)}
+.monday-sync.synced{color:var(--green)}
+.monday-sync.error{color:var(--red)}
+
+/* PROJ CARDS */
+.proj-grid{display:flex;flex-direction:column;gap:8px}
+.proj-card{background:#FFFFFF;border:1px solid var(--border);border-radius:var(--rlg);padding:16px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s}
+.proj-card:hover{border-color:var(--border2);background:var(--bg3)}
+.proj-icon{width:40px;height:40px;border-radius:var(--r);background:var(--blue-lt);border:1px solid var(--blue-bd);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.proj-body{flex:1;min-width:0}
+.proj-name{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-meta{font-size:11px;color:var(--text3);margin-top:2px;font-family:'DM Mono',monospace}
+.proj-acts{display:flex;gap:6px;flex-shrink:0}
+.empty-state{text-align:center;padding:48px 24px;color:var(--text3)}
+.empty-ico{font-size:40px;margin-bottom:10px;opacity:.4}
+.empty-h{font-size:15px;color:var(--text2);font-weight:600;margin-bottom:5px}
+.empty-p{font-size:12px}
+
+.amg-rec-radios{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.amg-rec-label{display:flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text2);transition:all .15s;user-select:none}
+.amg-rec-label:hover{border-color:var(--border2);color:var(--text)}
+.amg-rec-label input[type=radio]{accent-color:var(--blue);width:13px;height:13px;cursor:pointer}
+.amg-rec-selected{border-color:var(--blue-bd)!important;background:var(--blue-lt)!important;color:var(--text)!important}
+
+/* RESPONSIVE */
+@media(max-width:640px){
+  #app-main{padding:14px 10px 60px}
+  .fg2,.fg3{grid-template-columns:1fr}
+  .fg2 .sp2,.fg3 .sp3{grid-column:span 1}
+  .card{padding:14px}
+  .rfp-prev{padding:20px 12px}
+  .s-conn{width:16px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="app-hdr">
+    <div class="hdr-logo">
+      <span class="logo-mark">AMG</span>
+      <div>
+        <div class="logo-name">RFP Manager</div>
+        <div class="logo-sub">Apex Management Group · v2</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <span class="hdr-badge" id="mondayStatus"><span class="monday-dot"></span>monday.com</span>
+      <span class="hdr-badge" id="rfpCountBadge">0 RFPs</span>
+    </div>
+  </header>
+  <div id="app-main"></div>
+</div>
+<div id="toast-ct"></div>
+<div class="modal-ov hidden" id="deleteModal">
+  <div class="modal-box">
+    <div class="modal-title">Delete RFP?</div>
+    <p style="font-size:13px;color:var(--text2)">This will permanently delete this RFP from Monday.com. This cannot be undone.</p>
+    <div class="modal-acts">
+      <button class="btn btn-ghost btn-sm" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="confirmDeleteBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const MONDAY_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjI1MDQzODc1OSwiYWFpIjoxMSwidWlkIjozNjQwODY5NywiaWFkIjoiMjAyMy0wNC0xMlQyMDo0MDoxMy4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MTQwODk4NTIsInJnbiI6InVzZTEifQ.EThtjo3v0f-CEZM6H-6IxahoA8BhCL97-Ulte5ZBeM8';
+const XAI_KEY = 'zXhIvXFS5k3U6B95ln6mVuvMdo043g0uUiEflazlLQN9sEHSUSmi9otPLsdf990wuoUG6oVNzgMVCyLU';
+const XAI_API = 'https://api.x.ai/v1/chat/completions';
+const CONTRACTOR_BOARD_ID = '5061249432';
+const RFP_BOARD_ID = '18411957386';
+
+// Column IDs on the RFP Pipeline board
+const RFP_COLS = {
+  association: 'text_mm33674w',
+  projectType: 'dropdown_mm336k3s',
+  status: 'color_mm33v7jz',
+  assignedTo: 'multiple_person_mm33vtmk',
+  contractors: 'text_mm33exmf',
+  bidDueDate: 'date_mm3364xf',
+  lowBid: 'numeric_mm33qc7v',
+  awardedContractor: 'text_mm339fme',
+  awardedAmount: 'numeric_mm33h36h',
+  rfpLink: 'link_mm33y6ey',
+  notes: 'long_text_mm33nq4s'
 };
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  view: 'dashboard', // dashboard | wizard | detail
+  rfps: [],
+  contractors: [],
+  loadingContractors: false,
+  loadingRfps: false,
+  currentRfp: null,
+  wizardStep: 1,
+
+  form: {},
+  selectedContractors: [],
+  bids: {},
+  generatedScope: '',
+  generatingScope: false,
+  pendingDeleteId: null,
+  filterStatus: 'all',
+  searchTerm: '',
+  ctrSearch: '',
+  ctrTradeFilter: 'all',
+  ctrShowAll: false,
+};
+
+// ============================================================
+// MONDAY API
+// ============================================================
+async function mondayQuery(query, variables = {}) {
+  // Try direct first (works if CORS is allowed), fall back to proxy
+  const body = JSON.stringify({ query, variables });
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': MONDAY_TOKEN,
+    'API-Version': '2024-01'
+  };
+  let res;
+  try {
+    res = await fetch('https://api.monday.com/v2', { method: 'POST', headers, body });
+  } catch(e) {
+    // CORS blocked - use proxy
+    res = await fetch('https://amg-anthropic-proxy.nick-4f8.workers.dev/monday', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: MONDAY_TOKEN, query, variables })
+    });
+  }
+  const data = await res.json();
+  if (data.errors) throw new Error(data.errors[0].message);
+  return data.data;
+}
+
+async function fetchRFPs() {
+  state.loadingRfps = true;
+  render();
+  try {
+    const data = await mondayQuery(`
+      query {
+        boards(ids: [${RFP_BOARD_ID}]) {
+          items_page(limit: 200) {
+            items {
+              id name created_at updated_at
+              column_values {
+                id text value
+              }
+            }
+          }
+        }
+      }
+    `);
+    const items = data.boards[0].items_page.items;
+    state.rfps = items.map(parseRFPItem);
+    document.getElementById('rfpCountBadge').textContent = `${state.rfps.length} RFPs`;
+  } catch(e) {
+    toast('Failed to load RFPs from Monday.com: ' + e.message, 'err');
+  }
+  state.loadingRfps = false;
+  render();
+}
+
+function parseRFPItem(item) {
+  const cv = {};
+  item.column_values.forEach(c => { cv[c.id] = { text: c.text, value: c.value }; });
+  return {
+    id: item.id,
+    name: item.name,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+    association: cv[RFP_COLS.association]?.text || '',
+    projectType: cv[RFP_COLS.projectType]?.text || '',
+    status: cv[RFP_COLS.status]?.text || 'Draft',
+    contractors: cv[RFP_COLS.contractors]?.text || '',
+    bidDueDate: cv[RFP_COLS.bidDueDate]?.text || '',
+    lowBid: cv[RFP_COLS.lowBid]?.text || '',
+    awardedContractor: cv[RFP_COLS.awardedContractor]?.text || '',
+    awardedAmount: cv[RFP_COLS.awardedAmount]?.text || '',
+    notes: cv[RFP_COLS.notes]?.text || '',
+    rfpLink: (() => { try { const v = JSON.parse(cv[RFP_COLS.rfpLink]?.value || 'null'); return v?.url || ''; } catch(e){ return ''; } })(),
+  };
+}
+
+async function fetchContractors() {
+  if (state.contractors.length > 0) return;
+  state.loadingContractors = true;
+  render();
+  try {
+    let allItems = [];
+    let cursor = null;
+    do {
+      const cursorPart = cursor ? `, cursor: "${cursor}"` : '';
+      const data = await mondayQuery(`
+        query {
+          boards(ids: [${CONTRACTOR_BOARD_ID}]) {
+            items_page(limit: 200${cursorPart}) {
+              cursor
+              items {
+                id name
+                group { id title }
+                column_values(ids: ["color_mm2h8jmv","text_mm2jym2j","phone","email","email8","text34"]) {
+                  id text value
+                }
+              }
+            }
+          }
+        }
+      `);
+      const page = data.boards[0].items_page;
+      allItems = allItems.concat(page.items);
+      cursor = page.cursor;
+    } while (cursor);
+
+    state.contractors = allItems
+      .filter(item => item.group.id !== 'group_mkxcbkxn') // exclude "No Longer Use"
+      .map(item => {
+        const cv = {};
+        item.column_values.forEach(c => { cv[c.id] = c.text; });
+        const prefRaw = cv['color_mm2h8jmv'] || '';
+        return {
+          id: item.id,
+          name: item.name,
+          trade: item.group.title,
+          specialty: cv['text_mm2jym2j'] || '',
+          phone: cv['phone'] || '',
+          email: cv['email'] || '',
+          proposalsEmail: cv['email8'] || '',
+          workPerformed: cv['text34'] || '',
+          preferred: prefRaw === 'Preferred' ? 'preferred' : prefRaw === 'DNU Had Trouble In Past' ? 'trouble' : 'unsure',
+        };
+      });
+  } catch(e) {
+    toast('Failed to load contractors: ' + e.message, 'err');
+  }
+  state.loadingContractors = false;
+  render();
+}
+
+async function createRFPOnMonday(rfpData) {
+  const colVals = {};
+  if (rfpData.association) colVals[RFP_COLS.association] = rfpData.association;
+  if (rfpData.projectType) colVals[RFP_COLS.projectType] = { labels: [{ name: rfpData.projectType }] };
+  if (rfpData.status) colVals[RFP_COLS.status] = { label: rfpData.status };
+  if (rfpData.contractors) colVals[RFP_COLS.contractors] = rfpData.contractors;
+  if (rfpData.bidDueDate) colVals[RFP_COLS.bidDueDate] = { date: rfpData.bidDueDate };
+  if (rfpData.notes) colVals[RFP_COLS.notes] = rfpData.notes;
+
+  const data = await mondayQuery(`
+    mutation($boardId: ID!, $name: String!, $colVals: JSON!) {
+      create_item(board_id: $boardId, item_name: $name, column_values: $colVals) {
+        id
+      }
+    }
+  `, {
+    boardId: RFP_BOARD_ID,
+    name: rfpData.name,
+    colVals: JSON.stringify(colVals)
+  });
+  return data.create_item.id;
+}
+
+async function updateRFPOnMonday(itemId, updates) {
+  const colVals = {};
+  if (updates.status !== undefined) colVals[RFP_COLS.status] = { label: updates.status };
+  if (updates.contractors !== undefined) colVals[RFP_COLS.contractors] = updates.contractors;
+  if (updates.lowBid !== undefined) colVals[RFP_COLS.lowBid] = updates.lowBid;
+  if (updates.awardedContractor !== undefined) colVals[RFP_COLS.awardedContractor] = updates.awardedContractor;
+  if (updates.awardedAmount !== undefined) colVals[RFP_COLS.awardedAmount] = updates.awardedAmount;
+  if (updates.notes !== undefined) colVals[RFP_COLS.notes] = updates.notes;
+  if (updates.rfpLink !== undefined) colVals[RFP_COLS.rfpLink] = { url: updates.rfpLink, text: 'View RFP' };
+
+  await mondayQuery(`
+    mutation($boardId: ID!, $itemId: ID!, $colVals: JSON!) {
+      change_multiple_column_values(board_id: $boardId, item_id: $itemId, column_values: $colVals) {
+        id
+      }
+    }
+  `, { boardId: RFP_BOARD_ID, itemId, colVals: JSON.stringify(colVals) });
+}
+
+async function deleteRFPOnMonday(itemId) {
+  await mondayQuery(`
+    mutation($itemId: ID!) {
+      delete_item(item_id: $itemId) { id }
+    }
+  `, { itemId });
+}
+
+// ============================================================
+// XAI / GROK API
+// ============================================================
+async function xaiCall(prompt, maxTokens = 1500) {
+  const res = await fetch(XAI_API, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${XAI_KEY}`
+    },
+    body: JSON.stringify({
+      model: 'grok-3',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: maxTokens
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.choices[0].message.content;
+}
+
+async function generateScope(projectData) {
+  const prompt = `You are an expert property manager at Apex Management Group in Rhode Island. 
+Generate a detailed, professional RFP scope of work for the following project.
+Write clear, specific scope items that contractors can price accurately.
+Format as numbered line items. Be technical and specific.
+
+Association: ${projectData.association}
+Project Type: ${projectData.projectType}
+Description: ${projectData.description}
+Special Requirements: ${projectData.specialRequirements || 'None specified'}
+Timeline: ${projectData.timeline || 'To be determined'}
+
+Generate 8-12 detailed scope items.`;
+  return await xaiCall(prompt, 1500);
+}
+
+async function generateProcurementMemo(rfpData, selectedCtrs, bids) {
+  const bidSummary = selectedCtrs.map(c => {
+    const bid = bids[c.id];
+    return `${c.name}: $${bid?.amount || 'No bid'} | Notes: ${bid?.notes || 'N/A'}`;
+  }).join('\n');
+
+  const prompt = `Generate a professional procurement memo for a condominium association board. 
+This is for Apex Management Group recommending a contractor award.
+
+Project: ${rfpData.name}
+Association: ${rfpData.association}
+Project Type: ${rfpData.projectType}
+Scope Summary: ${rfpData.description}
+
+Bids Received:
+${bidSummary}
+
+Write a formal 3-paragraph memo: 1) Project background, 2) Bid analysis and comparison, 3) Recommendation with justification.
+Keep it professional and board-ready.`;
+  return await xaiCall(prompt, 1000);
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function toast(msg, type = 'info') {
+  const ct = document.getElementById('toast-ct');
+  const el = document.createElement('div');
+  el.className = `toast ${type === 'success' ? 'succ' : type === 'error' ? 'err' : type === 'warn' ? 'warn' : ''}`;
+  const icons = { success: '✓', error: '✕', warn: '⚠', info: 'ℹ' };
+  el.innerHTML = `<span>${icons[type] || icons.info}</span><span>${msg}</span>`;
+  ct.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch(e) { return d; }
+}
+
+function fmtCurrency(v) {
+  if (!v) return '—';
+  const n = parseFloat(v.replace(/[^0-9.]/g, ''));
+  if (isNaN(n)) return v;
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function statusColor(s) {
+  const map = {
+    'Draft': '#6E7681',
+    'Scope In Progress': '#D29922',
+    'Sent to Contractors': '#2F81F7',
+    'Bids Received': '#A371F7',
+    'Under Review': '#F78166',
+    'Awarded': '#3FB950',
+    'On Hold': '#6E7681',
+    'Cancelled': '#F85149'
+  };
+  return map[s] || '#6E7681';
+}
+
+function getStatusBadgeClass(s) {
+  if (s === 'Awarded') return 'bd-awarded';
+  if (s === 'Sent to Contractors') return 'bd-sent';
+  if (s === 'Bids Received' || s === 'Under Review') return 'bd-bids';
+  if (s === 'Draft' || s === 'Scope In Progress') return 'bd-draft';
+  return 'bd-draft';
+}
+
+const WIZARD_STEPS = [
+  { label: 'Project Info' },
+  { label: 'Contractors' },
+  { label: 'Scope' },
+  { label: 'Review' },
+  { label: 'Bids' },
+  { label: 'Award' },
+];
+
+const PROJECT_TYPES = [
+  'Roofing','Landscaping','Paving','Painting','Plumbing','Electrical',
+  'HVAC','Snow Removal','General Maintenance','Capital Improvement',
+  'Masonry','Flooring','Windows','Pest Control','Pool Services',
+  'Elevator','Fire Protection','Powerwashing','Tree Services','Other'
+];
+
+// ============================================================
+// RENDER ENGINE
+// ============================================================
+function render() {
+  const main = document.getElementById('app-main');
+  if (state.view === 'dashboard') main.innerHTML = renderDashboard();
+  else if (state.view === 'wizard') main.innerHTML = renderWizard();
+  else if (state.view === 'detail') main.innerHTML = renderDetail();
+  else if (state.view === 'settings') main.innerHTML = renderSettings();
+  attachHandlers();
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const statuses = ['Draft','Scope In Progress','Sent to Contractors','Bids Received','Under Review','Awarded','On Hold','Cancelled'];
+  const filtered = state.rfps.filter(r => {
+    const matchStatus = state.filterStatus === 'all' || r.status === state.filterStatus;
+    const matchSearch = !state.searchTerm || r.name.toLowerCase().includes(state.searchTerm.toLowerCase()) || r.association.toLowerCase().includes(state.searchTerm.toLowerCase());
+    return matchStatus && matchSearch;
+  });
+
+  const kanbanCols = ['Draft','Scope In Progress','Sent to Contractors','Bids Received','Under Review','Awarded'];
+  const colColors = {
+    'Draft':'#6E7681','Scope In Progress':'#D29922','Sent to Contractors':'#2F81F7',
+    'Bids Received':'#A371F7','Under Review':'#F78166','Awarded':'#3FB950'
+  };
+
+  const activeCount = state.rfps.filter(r => !['Awarded','Cancelled'].includes(r.status)).length;
+  const awardedCount = state.rfps.filter(r => r.status === 'Awarded').length;
+
+  if (state.loadingRfps) {
+    return `<div class="loader"><div class="loader-dots"><span></span><span></span><span></span></div>Loading RFPs from Monday.com...</div>`;
+  }
+
+  return `
+<div class="dash-top">
+  <div>
+    <div class="dash-hd">RFP Pipeline</div>
+    <div class="dash-sub">All active RFPs synced with Monday.com</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div class="dash-stats">
+      <div class="stat-pill"><strong>${state.rfps.length}</strong> Total</div>
+      <div class="stat-pill"><strong>${activeCount}</strong> Active</div>
+      <div class="stat-pill"><strong>${awardedCount}</strong> Awarded</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="goSettings()">⚙ Settings</button>
+    <button class="btn btn-primary btn-sm" onclick="startWizard()">+ New RFP</button>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <input type="text" placeholder="Search by name or association..." style="flex:1;min-width:180px" value="${state.searchTerm}" oninput="state.searchTerm=this.value;render()">
+    <select onchange="state.filterStatus=this.value;render()" style="min-width:180px">
+      <option value="all" ${state.filterStatus==='all'?'selected':''}>All Statuses</option>
+      ${statuses.map(s => `<option value="${s}" ${state.filterStatus===s?'selected':''}>${s}</option>`).join('')}
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="fetchRFPs()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd"><span class="card-ico">⬡</span> Kanban View</div>
+  <div class="kanban-wrap">
+    <div class="kanban-board">
+      ${kanbanCols.map(col => {
+        const colItems = filtered.filter(r => r.status === col);
+        return `
+        <div class="kanban-col">
+          <div class="kanban-hd" style="background:${colColors[col]}">
+            <span>${col}</span>
+            <span class="k-count">${colItems.length}</span>
+          </div>
+          <div class="kanban-body">
+            ${colItems.length === 0 ? `<div class="k-empty">No items</div>` : colItems.map(r => `
+              <div class="k-card" onclick="openDetail('${r.id}')">
+                <div class="k-card-name">${r.name}</div>
+                <div class="k-card-assoc">${r.association || '—'}</div>
+                <div class="k-card-foot">
+                  <span class="k-card-date">${r.bidDueDate ? fmtDate(r.bidDueDate) : ''}</span>
+                  <button class="k-card-del" onclick="event.stopPropagation();confirmDelete('${r.id}')">✕</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd"><span class="card-ico">≡</span> All RFPs</div>
+  ${filtered.length === 0 ? `
+    <div class="empty-state">
+      <div class="empty-ico">📋</div>
+      <div class="empty-h">${state.rfps.length === 0 ? 'No RFPs yet' : 'No matches'}</div>
+      <div class="empty-p">${state.rfps.length === 0 ? 'Create your first RFP to get started.' : 'Try adjusting your search or filter.'}</div>
+      ${state.rfps.length === 0 ? `<br><button class="btn btn-primary btn-sm" onclick="startWizard()">+ Create First RFP</button>` : ''}
+    </div>
+  ` : `
+    <div class="proj-grid">
+      ${filtered.map(r => `
+        <div class="proj-card" onclick="openDetail('${r.id}')">
+          <div class="proj-icon">${projectTypeIcon(r.projectType)}</div>
+          <div class="proj-body">
+            <div class="proj-name">${r.name}</div>
+            <div class="proj-meta">${r.association || 'No association'} · ${r.projectType || 'General'} · ${fmtDate(r.createdAt)}</div>
+          </div>
+          <div class="proj-acts">
+            <span class="badge ${getStatusBadgeClass(r.status)}">${r.status || 'Draft'}</span>
+            ${r.lowBid ? `<span class="badge bd-draft" style="font-family:'DM Mono',monospace">${fmtCurrency(r.lowBid)}</span>` : ''}
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();confirmDelete('${r.id}')">✕</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `}
+</div>`;
+}
+
+function projectTypeIcon(t) {
+  const map = { 'Roofing':'🏗','Landscaping':'🌿','Paving':'🛣','Painting':'🎨','Plumbing':'🔧','Electrical':'⚡','HVAC':'❄️','Snow Removal':'❄️','General Maintenance':'🔨','Capital Improvement':'🏢','Masonry':'🧱','Flooring':'🪵','Pest Control':'🐛','Pool Services':'🏊','Elevator':'🛗','Fire Protection':'🔥','Tree Services':'🌳' };
+  return map[t] || '📋';
+}
+
+// ============================================================
+// WIZARD
+// ============================================================
+function startWizard() {
+  state.view = 'wizard';
+  state.wizardStep = 1;
+  state.form = { status: 'Draft' };
+  state.selectedContractors = [];
+  state.bids = {};
+  state.generatedScope = '';
+  render();
+  fetchContractors();
+}
+
+function renderWizard() {
+  return `
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+  <button class="btn btn-ghost btn-sm" onclick="state.view='dashboard';render()">← Back</button>
+  <div style="flex:1">
+    <div style="font-size:16px;font-weight:700;color:var(--text)">New RFP</div>
+  </div>
+</div>
+${renderStepper()}
+<div class="card">
+  ${renderWizardStep()}
+</div>`;
+}
+
+function renderStepper() {
+  return `<div class="stepper">
+    ${WIZARD_STEPS.map((s, i) => {
+      const n = i + 1;
+      const cls = n < state.wizardStep ? 'done' : n === state.wizardStep ? 'active' : '';
+      return `
+      <div class="s-item">
+        <div class="s-inner">
+          <div class="s-bub ${cls}">${n < state.wizardStep ? '✓' : n}</div>
+          <div class="s-lbl ${cls}">${s.label}</div>
+        </div>
+        ${i < WIZARD_STEPS.length - 1 ? `<div class="s-conn ${n < state.wizardStep ? 'done' : ''}"></div>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderWizardStep() {
+  switch(state.wizardStep) {
+    case 1: return renderStep1();
+    case 2: return renderStep2();
+    case 3: return renderStep3();
+    case 4: return renderStep4();
+    case 5: return renderStep5();
+    case 6: return renderStep6();
+    default: return '';
+  }
+}
+
+function renderStep1() {
+  const f = state.form;
+  return `
+<div class="step-hd">
+  <div class="step-num">Step 1 of 6</div>
+  <div class="step-title">Project Information</div>
+  <div class="step-sub">Enter the core details for this RFP.</div>
+</div>
+<div class="fg2">
+  <div class="fg">
+    <label>RFP Name <span class="req">*</span></label>
+    <input type="text" id="f_name" value="${f.name||''}" placeholder="e.g. Oceanview Commons — Roof Replacement 2025" oninput="state.form.name=this.value">
+  </div>
+  <div class="fg">
+    <label>Association <span class="req">*</span></label>
+    <input type="text" id="f_association" value="${f.association||''}" placeholder="e.g. Oceanview Commons Condo Assoc." oninput="state.form.association=this.value">
+  </div>
+  <div class="fg">
+    <label>Project Type <span class="req">*</span></label>
+    <select id="f_projectType" onchange="state.form.projectType=this.value">
+      <option value="">Select type...</option>
+      ${PROJECT_TYPES.map(t => `<option value="${t}" ${f.projectType===t?'selected':''}>${t}</option>`).join('')}
+    </select>
+  </div>
+  <div class="fg">
+    <label>Bid Due Date</label>
+    <input type="date" id="f_bidDueDate" value="${f.bidDueDate||''}" onchange="state.form.bidDueDate=this.value">
+  </div>
+  <div class="fg sp2">
+    <label>Project Description <span class="req">*</span></label>
+    <textarea id="f_description" rows="4" placeholder="Describe what needs to be done, current conditions, any known issues..." oninput="state.form.description=this.value">${f.description||''}</textarea>
+  </div>
+  <div class="fg">
+    <label>Special Requirements</label>
+    <input type="text" id="f_specialReqs" value="${f.specialReqs||''}" placeholder="e.g. Must be completed before April 30" oninput="state.form.specialReqs=this.value">
+  </div>
+  <div class="fg">
+    <label>Desired Timeline</label>
+    <input type="text" id="f_timeline" value="${f.timeline||''}" placeholder="e.g. 4–6 weeks starting March" oninput="state.form.timeline=this.value">
+  </div>
+</div>
+<div class="step-nav">
+  <div class="snl"><button class="btn btn-ghost" onclick="state.view='dashboard';render()">Cancel</button></div>
+  <div class="snr"><button class="btn btn-primary" onclick="saveStep1AndNext()">Next: Select Contractors →</button></div>
+</div>`;
+}
+
+function renderStep2() {
+  const ctrs = getFilteredContractors();
+  const trades = [...new Set(state.contractors.map(c => c.trade))].sort();
+
+  return `
+<div class="step-hd">
+  <div class="step-num">Step 2 of 6</div>
+  <div class="step-title">Select Contractors</div>
+  <div class="step-sub">Choose contractors to send this RFP to. Pulled live from your Monday.com vendor board.</div>
+</div>
+${state.loadingContractors ? `<div class="loader"><div class="loader-dots"><span></span><span></span><span></span></div>Loading contractors from Monday.com...</div>` : `
+<div class="ctr-search-bar">
+  <input type="text" placeholder="Search contractors..." value="${state.ctrSearch}" oninput="state.ctrSearch=this.value;render()">
+  <select onchange="state.ctrTradeFilter=this.value;render()">
+    <option value="all" ${state.ctrTradeFilter==='all'?'selected':''}>All Trades</option>
+    <option value="preferred" ${state.ctrTradeFilter==='preferred'?'selected':''}>⭐ Preferred Only</option>
+    ${trades.map(t => `<option value="${t}" ${state.ctrTradeFilter===t?'selected':''}>${t}</option>`).join('')}
+  </select>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+  <span class="text-muted">${ctrs.length} contractors${state.selectedContractors.length > 0 ? ` · <span class="sel-count">${state.selectedContractors.length} selected</span>` : ''}</span>
+  ${state.selectedContractors.length > 0 ? `<button class="btn btn-ghost btn-sm" onclick="state.selectedContractors=[];render()">Clear all</button>` : ''}
+</div>
+<div class="ctr-list">
+  ${ctrs.slice(0, state.ctrShowAll ? 999 : 50).map(c => {
+    const sel = state.selectedContractors.includes(c.id);
+    return `
+    <div class="ctr-item ${sel ? 'selected' : ''} pref-${c.preferred}" onclick="toggleContractor('${c.id}')">
+      <div class="pref-dot"></div>
+      <input type="checkbox" class="ctr-chk" ${sel?'checked':''} onclick="event.stopPropagation();toggleContractor('${c.id}')">
+      <div class="ctr-info">
+        <div class="ctr-name">${c.name}</div>
+        <div class="ctr-meta">${c.phone || c.email || 'No contact info'}</div>
+      </div>
+      <span class="ctr-trade">${c.trade}</span>
+    </div>`;
+  }).join('')}
+</div>
+${ctrs.length > 50 && !state.ctrShowAll ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%" onclick="state.ctrShowAll=true;render()">Show all ${ctrs.length} contractors</button>` : ''}
+`}
+<div class="step-nav">
+  <div class="snl"><button class="btn btn-ghost" onclick="state.wizardStep=1;render()">← Back</button></div>
+  <div class="snr">
+    ${state.selectedContractors.length > 0 ? `<span style="font-size:12px;color:var(--text2);align-self:center">${state.selectedContractors.length} selected</span>` : ''}
+    <button class="btn btn-primary" onclick="state.wizardStep=3;render()">Next: Generate Scope →</button>
+  </div>
+</div>`;
+}
+
+function renderStep3() {
+  return `
+<div class="step-hd">
+  <div class="step-num">Step 3 of 6</div>
+  <div class="step-title">Generate Scope of Work</div>
+  <div class="step-sub">Use AI to generate a detailed scope, or write your own.</div>
+</div>
+
+<div class="fg" style="margin-bottom:14px">
+  <label>Scope of Work</label>
+  <textarea id="scopeText" rows="12" placeholder="Scope will appear here after generation, or type your own...">${state.generatedScope}</textarea>
+</div>
+${state.generatingScope ? `<div class="loader"><div class="loader-dots"><span></span><span></span><span></span></div>Generating scope with AI...</div>` : `
+<button class="btn btn-primary" onclick="triggerScopeGen()">✦ Generate with Grok</button>
+<span style="font-size:12px;color:var(--text3);margin-left:10px">Uses project description from Step 1</span>
+`}
+<div class="step-nav">
+  <div class="snl"><button class="btn btn-ghost" onclick="state.wizardStep=2;render()">← Back</button></div>
+  <div class="snr"><button class="btn btn-primary" onclick="saveScope()">Next: Preview RFP →</button></div>
+</div>`;
+}
+
+function renderStep4() {
+  const f = state.form;
+  const selCtrs = state.contractors.filter(c => state.selectedContractors.includes(c.id));
+  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  return `
+<div class="step-hd">
+  <div class="step-num">Step 4 of 6</div>
+  <div class="step-title">Review & Send</div>
+  <div class="step-sub">Review the RFP before saving to Monday.com and generating emails.</div>
+</div>
+<div class="rfp-prev" id="rfpPreview">
+  <h1>Request for Proposal</h1>
+  <div class="rfp-sub">${f.association || '—'} · ${today}</div>
+  <h2>Project Overview</h2>
+  <div class="meta-row"><div class="meta-lbl">Project Name</div><div class="meta-val">${f.name || '—'}</div></div>
+  <div class="meta-row"><div class="meta-lbl">Project Type</div><div class="meta-val">${f.projectType || '—'}</div></div>
+  <div class="meta-row"><div class="meta-lbl">Association</div><div class="meta-val">${f.association || '—'}</div></div>
+  <div class="meta-row"><div class="meta-lbl">Bid Due Date</div><div class="meta-val">${f.bidDueDate ? fmtDate(f.bidDueDate) : '—'}</div></div>
+  <div class="meta-row"><div class="meta-lbl">Timeline</div><div class="meta-val">${f.timeline || '—'}</div></div>
+  <h2>Description</h2>
+  <div class="scope-block">${f.description || '—'}</div>
+  ${state.generatedScope ? `<h2>Scope of Work</h2><div class="scope-block">${state.generatedScope}</div>` : ''}
+  ${f.specialReqs ? `<h2>Special Requirements</h2><p>${f.specialReqs}</p>` : ''}
+  <h2>Selected Contractors</h2>
+  ${selCtrs.map(c => `<div class="meta-row"><div class="meta-lbl">${c.name}</div><div class="meta-val">${c.proposalsEmail || c.email || 'No email'}</div></div>`).join('')}
+</div>
+<div style="margin-top:14px;display:flex;gap:8px">
+  <button class="btn btn-ghost btn-sm" onclick="exportRFPPDF()">⬇ Export PDF</button>
+</div>
+<div class="step-nav">
+  <div class="snl"><button class="btn btn-ghost" onclick="state.wizardStep=3;render()">← Back</button></div>
+  <div class="snr"><button class="btn btn-primary btn-lg" onclick="saveRFPToMonday()">💾 Save to Monday.com & Continue →</button></div>
+</div>`;
+}
+
+function renderStep5() {
+  const selCtrs = state.contractors.filter(c => state.selectedContractors.includes(c.id));
+  if (selCtrs.length === 0) {
+    return `<div class="step-hd"><div class="step-title">Enter Bids</div></div>
+    <div class="info-box">ℹ No contractors selected. Go back and select contractors.</div>
+    <div class="step-nav"><div class="snl"><button class="btn btn-ghost" onclick="state.wizardStep=4;render()">← Back</button></div></div>`;
+  }
+
+  let lowBid = null, lowBidCtr = null;
+  selCtrs.forEach(c => {
+    const amt = parseFloat(state.bids[c.id]?.amount || '');
+    if (!isNaN(amt) && (lowBid === null || amt < lowBid)) { lowBid = amt; lowBidCtr = c; }
+  });
+
+  return `
+<div class="step-hd">
+  <div class="step-num">Step 5 of 6</div>
+  <div class="step-title">Enter Bids</div>
+  <div class="step-sub">Record bids received from contractors.</div>
+</div>
+${lowBidCtr ? `
+<div class="bid-lo-row">
+  <div class="lo-card">
+    <div class="lo-lbl">Lowest Bid</div>
+    <div class="lo-val">$${lowBid.toLocaleString()}</div>
+    <div class="lo-sub">${lowBidCtr.name}</div>
+  </div>
+</div>` : ''}
+<div class="bid-wrap">
+  <table class="bid-tbl">
+    <thead>
+      <tr>
+        <th>Contractor</th>
+        <th>Trade</th>
+        <th>Bid Amount ($)</th>
+        <th>Lead Time</th>
+        <th>Notes</th>
+        <th>Attachment</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${selCtrs.map(c => {
+        const bid = state.bids[c.id] || {};
+        const isLow = lowBidCtr && c.id === lowBidCtr.id;
+        return `
+        <tr class="${isLow ? 'low-bid' : ''}">
+          <td style="font-weight:600;color:var(--text);font-size:12px">${c.name}${isLow ? ' <span style="color:var(--green);font-size:10px">★ LOW</span>' : ''}</td>
+          <td style="color:var(--text3);font-size:11px">${c.trade}</td>
+          <td><input type="number" class="bid-in" placeholder="0.00" value="${bid.amount||''}" oninput="setBid('${c.id}','amount',this.value)"></td>
+          <td><input type="text" class="bid-in" placeholder="e.g. 3 weeks" value="${bid.leadTime||''}" oninput="setBid('${c.id}','leadTime',this.value)"></td>
+          <td><input type="text" class="bid-in" placeholder="Notes..." value="${bid.notes||''}" oninput="setBid('${c.id}','notes',this.value)"></td>
+          <td><label class="att-btn" style="cursor:pointer">📎 Attach<input type="file" style="display:none" onchange="attachBidFile('${c.id}',this)"></label></td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>
+</div>
+<div class="step-nav">
+  <div class="snl"><button class="btn btn-ghost" onclick="state.wizardStep=4;render()">← Back</button></div>
+  <div class="snr"><button class="btn btn-primary" onclick="saveBidsAndNext()">Next: Award →</button></div>
+</div>`;
+}
+
+function renderStep6() {
+  const selCtrs = state.contractors.filter(c => state.selectedContractors.includes(c.id));
+  const bidsWithAmounts = selCtrs.filter(c => state.bids[c.id]?.amount);
+  const sorted = [...bidsWithAmounts].sort((a,b) => parseFloat(state.bids[a.id].amount) - parseFloat(state.bids[b.id].amount));
+  const f = state.form;
+
+  return `
+<div class="step-hd">
+  <div class="step-num">Step 6 of 6</div>
+  <div class="step-title">Award Contractor</div>
+  <div class="step-sub">Select the winning contractor and generate the procurement memo.</div>
+</div>
+${sorted.length > 0 ? `
+<div class="section-sep">Bid Summary — Ranked by Price</div>
+<div class="bid-wrap">
+  <table class="bid-tbl">
+    <thead>
+      <tr><th>Rank</th><th>Contractor</th><th>Bid Amount</th><th>Lead Time</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      ${sorted.map((c,i) => `
+        <tr class="${i===0?'low-bid':''}">
+          <td style="font-family:'DM Mono',monospace;color:var(--text3)">#${i+1}</td>
+          <td style="font-weight:600;color:var(--text);font-size:12px">${c.name}</td>
+          <td style="font-family:'DM Mono',monospace;color:var(--green)">$${parseFloat(state.bids[c.id].amount).toLocaleString()}</td>
+          <td style="color:var(--text3)">${state.bids[c.id].leadTime||'—'}</td>
+          <td style="color:var(--text3)">${state.bids[c.id].notes||'—'}</td>
+        </tr>`).join('')}
+    </tbody>
+  </table>
+</div>` : '<div class="info-box">ℹ No bids entered. You can still award manually.</div>'}
+
+<div class="section-sep" style="margin-top:20px">Award Decision</div>
+<div class="fg2">
+  <div class="fg">
+    <label>Awarded To</label>
+    <div class="amg-rec-radios">
+      ${selCtrs.map(c => `
+        <label class="amg-rec-label ${f.awardedContractor===c.name?'amg-rec-selected':''}">
+          <input type="radio" name="awardCtr" value="${c.name}" ${f.awardedContractor===c.name?'checked':''} onchange="state.form.awardedContractor=this.value;state.form.awardedAmount=state.bids['${c.id}']?.amount||'';render()">
+          ${c.name}
+        </label>`).join('')}
+    </div>
+  </div>
+  <div class="fg">
+    <label>Awarded Amount ($)</label>
+    <input type="number" id="f_awardedAmount" value="${f.awardedAmount||''}" placeholder="Final contracted amount" oninput="state.form.awardedAmount=this.value">
+  </div>
+  <div class="fg sp2">
+    <label>Award Notes</label>
+    <textarea id="f_awardNotes" rows="3" placeholder="Reason for selection, board approval notes, etc.">${f.awardNotes||''}</textarea>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+  <div class="section-sep" style="margin:0">Procurement Memo</div>
+  <button class="btn btn-ghost btn-sm" onclick="triggerMemoGen()">✦ Generate with Grok</button>
+</div>
+${state.form.procurementMemo ? `<div class="rfp-prev"><div class="scope-block">${state.form.procurementMemo}</div></div>` : `<div class="warn-box" style="font-size:12px">⊙ Generate a memo above to include with the award documentation.</div>`}
+
+<div class="step-nav">
+  <div class="snl"><button class="btn btn-ghost" onclick="state.wizardStep=5;render()">← Back</button></div>
+  <div class="snr"><button class="btn btn-success btn-lg" onclick="finalizeAward()">🏆 Finalize Award & Update Monday.com</button></div>
+</div>`;
+}
+
+// ============================================================
+// DETAIL VIEW
+// ============================================================
+function renderDetail() {
+  const rfp = state.rfps.find(r => r.id === state.currentRfp);
+  if (!rfp) return `<button class="btn btn-ghost" onclick="state.view='dashboard';render()">← Back</button><p>RFP not found.</p>`;
+  const statuses = ['Draft','Scope In Progress','Sent to Contractors','Bids Received','Under Review','Awarded','On Hold','Cancelled'];
+
+  return `
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+  <button class="btn btn-ghost btn-sm" onclick="state.view='dashboard';render()">← Pipeline</button>
+  <div style="flex:1">
+    <div style="font-size:18px;font-weight:700;color:var(--text)">${rfp.name}</div>
+    <div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">${rfp.association || '—'} · Created ${fmtDate(rfp.createdAt)}</div>
+  </div>
+  <span class="badge ${getStatusBadgeClass(rfp.status)}" style="font-size:13px;padding:4px 12px">${rfp.status}</span>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+  <div class="card-hd"><span class="card-ico">📋</span> Details</div>
+  <div class="fg2">
+    <div class="fg">
+      <label>Status</label>
+      <select id="detailStatus" onchange="quickUpdateStatus('${rfp.id}',this.value)">
+        ${statuses.map(s => `<option value="${s}" ${rfp.status===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg">
+      <label>Project Type</label>
+      <input type="text" value="${rfp.projectType}" readonly style="background:var(--bg3);color:var(--text2)">
+    </div>
+    <div class="fg">
+      <label>Bid Due Date</label>
+      <input type="text" value="${rfp.bidDueDate ? fmtDate(rfp.bidDueDate) : '—'}" readonly style="background:var(--bg3);color:var(--text2)">
+    </div>
+    <div class="fg">
+      <label>Low Bid</label>
+      <input type="text" value="${fmtCurrency(rfp.lowBid)}" readonly style="background:var(--bg3);color:var(--text2)">
+    </div>
+    <div class="fg">
+      <label>Awarded Contractor</label>
+      <input type="text" value="${rfp.awardedContractor || '—'}" readonly style="background:var(--bg3);color:var(--text2)">
+    </div>
+    <div class="fg">
+      <label>Awarded Amount</label>
+      <input type="text" value="${fmtCurrency(rfp.awardedAmount)}" readonly style="background:var(--bg3);color:var(--text2)">
+    </div>
+  </div>
+  ${rfp.contractors ? `<div style="margin-top:12px"><label>Contractors Bid</label><p style="font-size:13px;color:var(--text2);margin-top:4px">${rfp.contractors}</p></div>` : ''}
+  ${rfp.notes ? `<div style="margin-top:12px"><label>Notes</label><p style="font-size:13px;color:var(--text2);margin-top:4px;white-space:pre-wrap">${rfp.notes}</p></div>` : ''}
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+  <a href="https://zanno-pm.monday.com/boards/${RFP_BOARD_ID}" target="_blank" class="btn btn-ghost btn-sm">↗ View in Monday.com</a>
+  ${rfp.rfpLink ? `<a href="${rfp.rfpLink}" target="_blank" class="btn btn-ghost btn-sm">↗ View RFP Doc</a>` : ''}
+  <button class="btn btn-danger btn-sm" onclick="confirmDelete('${rfp.id}')">✕ Delete</button>
+</div>`;
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function goSettings() {
+  state.view = 'settings';
+  render();
+}
+
+function renderSettings() {
+  return `
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+  <button class="btn btn-ghost btn-sm" onclick="state.view='dashboard';render()">← Back</button>
+  <div style="font-size:18px;font-weight:700;color:var(--text)">Settings</div>
+</div>
+<div class="card">
+  <div class="card-hd"><span class="card-ico">🔑</span> AI Integration</div>
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--green-lt);border:1px solid var(--green-bd);border-radius:var(--r)">
+    <span style="font-size:18px">✓</span>
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--green)">Grok (xAI) Connected</div>
+      <div style="font-size:11px;color:var(--text3)">Scope generation and procurement memos powered by Grok-3</div>
+    </div>
+  </div>
+</div>
+<div class="card">
+  <div class="card-hd"><span class="card-ico">⬡</span> Monday.com Integration</div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="fg"><label>RFP Pipeline Board</label><input type="text" value="Board ID: ${RFP_BOARD_ID}" readonly style="background:var(--bg3);color:var(--text2);font-family:'DM Mono',monospace"></div>
+    <div class="fg"><label>Contractor Board</label><input type="text" value="Board ID: ${CONTRACTOR_BOARD_ID}" readonly style="background:var(--bg3);color:var(--text2);font-family:'DM Mono',monospace"></div>
+  </div>
+  <div style="margin-top:14px">
+    <a href="https://zanno-pm.monday.com/boards/${RFP_BOARD_ID}" target="_blank" class="btn btn-ghost btn-sm">↗ Open RFP Board</a>
+    <a href="https://zanno-pm.monday.com/boards/${CONTRACTOR_BOARD_ID}" target="_blank" class="btn btn-ghost btn-sm" style="margin-left:8px">↗ Open Contractor Board</a>
+  </div>
+</div>`;
+}
+
+// ============================================================
+// EVENT HANDLERS
+// ============================================================
+function attachHandlers() {}
+
+function saveStep1AndNext() {
+  const name = document.getElementById('f_name')?.value.trim();
+  const assoc = document.getElementById('f_association')?.value.trim();
+  const projType = document.getElementById('f_projectType')?.value;
+  const desc = document.getElementById('f_description')?.value.trim();
+  if (!name || !assoc || !projType || !desc) { toast('Please fill in all required fields.', 'warn'); return; }
+  state.form = { ...state.form, name, association: assoc, projectType: projType, description: desc,
+    bidDueDate: document.getElementById('f_bidDueDate')?.value || '',
+    specialReqs: document.getElementById('f_specialReqs')?.value || '',
+    timeline: document.getElementById('f_timeline')?.value || ''
+  };
+  state.wizardStep = 2;
+  render();
+}
+
+function toggleContractor(id) {
+  const idx = state.selectedContractors.indexOf(id);
+  if (idx === -1) state.selectedContractors.push(id);
+  else state.selectedContractors.splice(idx, 1);
+  render();
+}
+
+function getFilteredContractors() {
+  return state.contractors.filter(c => {
+    const matchSearch = !state.ctrSearch || c.name.toLowerCase().includes(state.ctrSearch.toLowerCase()) || c.trade.toLowerCase().includes(state.ctrSearch.toLowerCase());
+    const matchTrade = state.ctrTradeFilter === 'all' ? true :
+      state.ctrTradeFilter === 'preferred' ? c.preferred === 'preferred' :
+      c.trade === state.ctrTradeFilter;
+    return matchSearch && matchTrade;
+  });
+}
+
+async function triggerScopeGen() {
+  state.generatingScope = true;
+  render();
+  try {
+    const scope = await generateScope(state.form);
+    state.generatedScope = scope;
+    toast('Scope generated!', 'success');
+  } catch(e) {
+    toast('Scope generation failed: ' + e.message, 'error');
+  }
+  state.generatingScope = false;
+  render();
+}
+
+function saveScope() {
+  const txt = document.getElementById('scopeText')?.value || state.generatedScope;
+  state.generatedScope = txt;
+  state.form.scope = txt;
+  state.wizardStep = 4;
+  render();
+}
+
+async function saveRFPToMonday() {
+  const selCtrs = state.contractors.filter(c => state.selectedContractors.includes(c.id));
+  const rfpData = {
+    name: state.form.name,
+    association: state.form.association,
+    projectType: state.form.projectType,
+    status: 'Sent to Contractors',
+    contractors: selCtrs.map(c => c.name).join(', '),
+    bidDueDate: state.form.bidDueDate,
+    notes: [state.form.description, state.form.scope ? '\nScope:\n' + state.form.scope : ''].filter(Boolean).join('\n'),
+  };
+  try {
+    const newId = await createRFPOnMonday(rfpData);
+    state.form.mondayItemId = newId;
+    state.form.status = 'Sent to Contractors';
+    toast('RFP saved to Monday.com!', 'success');
+    await fetchRFPs();
+    state.wizardStep = 5;
+    render();
+  } catch(e) {
+    toast('Failed to save to Monday.com: ' + e.message, 'error');
+  }
+}
+
+function setBid(ctrId, field, val) {
+  if (!state.bids[ctrId]) state.bids[ctrId] = {};
+  state.bids[ctrId][field] = val;
+  // Re-render bid table rows only (light update)
+  const tbody = document.querySelector('.bid-tbl tbody');
+  if (tbody) render();
+}
+
+function attachBidFile(ctrId, input) {
+  if (!state.bids[ctrId]) state.bids[ctrId] = {};
+  state.bids[ctrId].file = input.files[0]?.name || null;
+  toast(`File attached for bid`, 'success');
+}
+
+async function saveBidsAndNext() {
+  if (state.form.mondayItemId) {
+    const selCtrs = state.contractors.filter(c => state.selectedContractors.includes(c.id));
+    const bidsWithAmounts = selCtrs.filter(c => state.bids[c.id]?.amount);
+    if (bidsWithAmounts.length > 0) {
+      const sorted = [...bidsWithAmounts].sort((a,b) => parseFloat(state.bids[a.id].amount) - parseFloat(state.bids[b.id].amount));
+      const low = sorted[0];
+      try {
+        await updateRFPOnMonday(state.form.mondayItemId, {
+          status: 'Bids Received',
+          lowBid: parseFloat(state.bids[low.id].amount),
+        });
+        toast('Bids saved to Monday.com', 'success');
+        await fetchRFPs();
+      } catch(e) { toast('Could not update Monday.com: ' + e.message, 'warn'); }
+    }
+  }
+  state.wizardStep = 6;
+  render();
+}
+
+async function triggerMemoGen() {
+  const selCtrs = state.contractors.filter(c => state.selectedContractors.includes(c.id));
+  try {
+    const memo = await generateProcurementMemo(state.form, selCtrs, state.bids);
+    state.form.procurementMemo = memo;
+    toast('Memo generated!', 'success');
+    render();
+  } catch(e) {
+    toast('Memo generation failed: ' + e.message, 'error');
+  }
+}
+
+async function finalizeAward() {
+  const awardedContractor = state.form.awardedContractor || document.getElementById('f_awardedAmount')?.closest('form')?.awardCtr?.value;
+  const awardedAmount = document.getElementById('f_awardedAmount')?.value || state.form.awardedAmount;
+  const awardNotes = document.getElementById('f_awardNotes')?.value || '';
+
+  if (!awardedContractor) { toast('Please select an awarded contractor.', 'warn'); return; }
+
+  if (state.form.mondayItemId) {
+    try {
+      await updateRFPOnMonday(state.form.mondayItemId, {
+        status: 'Awarded',
+        awardedContractor,
+        awardedAmount: parseFloat(awardedAmount) || 0,
+        notes: [state.form.description, state.form.scope ? '\nScope:\n' + state.form.scope : '', awardNotes ? '\nAward Notes:\n' + awardNotes : '', state.form.procurementMemo ? '\nProcurement Memo:\n' + state.form.procurementMemo : ''].filter(Boolean).join('\n'),
+      });
+      toast('🏆 RFP Awarded and saved to Monday.com!', 'success');
+      await fetchRFPs();
+      state.view = 'dashboard';
+      render();
+    } catch(e) {
+      toast('Failed to update Monday.com: ' + e.message, 'error');
+    }
+  } else {
+    toast('No Monday.com item linked. Go back and save first.', 'warn');
+  }
+}
+
+async function quickUpdateStatus(itemId, newStatus) {
+  try {
+    await updateRFPOnMonday(itemId, { status: newStatus });
+    const rfp = state.rfps.find(r => r.id === itemId);
+    if (rfp) rfp.status = newStatus;
+    toast(`Status updated to "${newStatus}"`, 'success');
+    render();
+  } catch(e) {
+    toast('Failed to update status: ' + e.message, 'error');
+  }
+}
+
+function openDetail(id) {
+  state.currentRfp = id;
+  state.view = 'detail';
+  render();
+}
+
+function confirmDelete(id) {
+  state.pendingDeleteId = id;
+  document.getElementById('deleteModal').classList.remove('hidden');
+  document.getElementById('confirmDeleteBtn').onclick = async () => {
+    closeDeleteModal();
+    try {
+      await deleteRFPOnMonday(id);
+      state.rfps = state.rfps.filter(r => r.id !== id);
+      if (state.currentRfp === id) { state.view = 'dashboard'; state.currentRfp = null; }
+      toast('RFP deleted', 'success');
+      render();
+    } catch(e) {
+      toast('Failed to delete: ' + e.message, 'error');
+    }
+  };
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.add('hidden');
+  state.pendingDeleteId = null;
+}
+
+function saveSettings() {
+  state.anthropicKey = document.getElementById('settingsAnthropicKey')?.value.trim() || '';
+  localStorage.setItem('amg_anthropic_key', state.anthropicKey);
+  toast('Settings saved', 'success');
+}
+
+function exportRFPPDF() {
+  toast('Opening print dialog for PDF export...', 'info');
+  setTimeout(() => window.print(), 300);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('click', e => {
+  if (e.target === document.getElementById('deleteModal')) closeDeleteModal();
+});
+
+render();
+fetchRFPs();
+</script>
+</body>
+</html>
