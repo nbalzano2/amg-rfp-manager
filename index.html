@@ -454,13 +454,13 @@ async function mondayDeleteProject(id) {
 function showMonTokenModal() {
   const cur = getMonToken();
   showModal(
-    '⚙ Monday API Token',
-    '<p style="font-size:13px;color:var(--g600);margin-bottom:12px">Your token authenticates the app to read and write RFP projects on your Monday.com board.<br><br>' +
-    '<strong>Where to find it:</strong> Monday.com → click your avatar (top-right) → <em>Administration</em> → <em>API</em> → <em>Personal API Token</em> → <em>Copy</em>.</p>' +
-    '<textarea id="mon-token-input" style="width:100%;height:72px;font-family:monospace;font-size:11px;padding:8px;border:1px solid var(--g300);border-radius:6px;resize:vertical" placeholder="v2eyd...">' + (cur || '') + '</textarea>' +
-    (cur ? '<p style="font-size:11px;color:var(--g500);margin-top:6px">Token is set. Paste a new one to replace it, or clear the field to remove.</p>' : '') +
+    '<div style="font-size:16px;font-weight:800;color:var(--navy);margin-bottom:14px">⚙ Monday API Token</div>' +
+    '<p style="font-size:13px;color:var(--g600);margin-bottom:12px">Your token lets the app read and write RFP projects on your Monday.com board.<br><br>' +
+    '<strong>Where to find it:</strong> monday.com → avatar (top-right) → <em>Administration</em> → <em>API</em> → <em>Personal API Token</em> → Copy.</p>' +
+    '<textarea id="mon-token-input" style="width:100%;height:72px;font-family:monospace;font-size:11px;padding:8px;border:1px solid var(--g300);border-radius:6px;resize:vertical;box-sizing:border-box" placeholder="Paste your token here...">' + (cur || '') + '</textarea>' +
+    (cur ? '<p style="font-size:11px;color:var(--g500);margin-top:6px">Token is currently set. Paste a new one to replace it, or clear the field to remove.</p>' : '') +
     '<div style="display:flex;gap:8px;margin-top:14px">' +
-    '<button class="btn btn-blue" onclick="saveMonToken()">Save Token</button>' +
+    '<button class="btn btn-blue" onclick="saveMonToken()">Save &amp; Sync</button>' +
     '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>' +
     '</div>'
   );
